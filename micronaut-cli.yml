@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: io.carloship.jouwblog
+testFramework: junit
+sourceLanguage: java
+buildTool: gradle_kotlin
+features: [annotation-api, app-name, cache-caffeine, data, data-mongodb, gradle, http-client-test, jackson-databind, java, java-application, junit, logback, lombok, micronaut-aot, micronaut-build, micronaut-http-validation, mongo-sync, netty-server, openapi, readme, redis-lettuce, serialization-jackson, shade, static-resources, swagger-ui, test-resources, yaml, yaml-build]
