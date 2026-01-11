@@ -6,6 +6,7 @@ import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -22,12 +23,8 @@ public class PostRedisRepository {
     private static final String USER_POSTS_SET_PREFIX = "user_posts:";
     private static final Duration DEFAULT_EXPIRATION_SECONDS = Application.DEFAULT_REDIS_TIME;
 
-    private final RedisAsyncCommands<String, String> asyncCommands;
-
     @Inject
-    public PostRedisRepository(RedisAsyncCommands<String, String> asyncCommands) {
-        this.asyncCommands = asyncCommands;
-    }
+    protected RedisAsyncCommands<String, String> asyncCommands;
 
     @Async
     public CompletableFuture<Post> findPost(String userId, String postId) {
@@ -87,7 +84,7 @@ public class PostRedisRepository {
     }
 
     @Async
-    public CompletableFuture<Boolean> savePost(Post post) {
+    public CompletableFuture<Boolean> savePost(@NotNull Post post) {
         if (post == null || post.getUserId() == null || post.getUserId().isBlank()) {
             log.warn("Invalid post data for save operation");
             return CompletableFuture.completedFuture(false);
@@ -98,21 +95,15 @@ public class PostRedisRepository {
         String userPostsKey = buildUserPostsSetKey(post.getUserId());
 
         return asyncCommands.hset(key, map)
-                .thenCompose(result -> asyncCommands.expire(key, DEFAULT_EXPIRATION_SECONDS))
-                .thenCompose(expireResult ->
-                        asyncCommands.sadd(userPostsKey, String.valueOf(post.getPostId()))
-                )
-                .thenCompose(saddResult ->
-                        asyncCommands.expire(userPostsKey, DEFAULT_EXPIRATION_SECONDS)
-                )
-                .thenApply(result -> {
-                    log.debug("Post saved successfully: userId={}, postId={}",
-                            post.getUserId(), post.getPostId());
+                .thenCompose(_ -> asyncCommands.expire(key, DEFAULT_EXPIRATION_SECONDS))
+                .thenCompose(_ -> asyncCommands.sadd(userPostsKey, String.valueOf(post.getPostId())))
+                .thenCompose(_ -> asyncCommands.expire(userPostsKey, DEFAULT_EXPIRATION_SECONDS))
+                .thenApply(_ -> {
+                    log.debug("Post saved successfully: userId={}, postId={}", post.getUserId(), post.getPostId());
                     return true;
                 })
                 .exceptionally(ex -> {
-                    log.error("Error saving post: userId={}, postId={}, error={}",
-                            post.getUserId(), post.getPostId(), ex.getMessage(), ex);
+                    log.error("Error saving post: userId={}, postId={}, error={}", post.getUserId(), post.getPostId(), ex.getMessage(), ex);
                     return false;
                 })
                 .toCompletableFuture();
@@ -128,10 +119,8 @@ public class PostRedisRepository {
         String userPostsKey = buildUserPostsSetKey(userId);
 
         return asyncCommands.del(key)
-                .thenCompose(delResult ->
-                        asyncCommands.srem(userPostsKey, String.valueOf(postId))
-                )
-                .thenApply(result -> {
+                .thenCompose(_ -> asyncCommands.srem(userPostsKey, String.valueOf(postId)))
+                .thenApply(_ -> {
                     log.debug("Post deleted: userId={}, postId={}", userId, postId);
                     return true;
                 })

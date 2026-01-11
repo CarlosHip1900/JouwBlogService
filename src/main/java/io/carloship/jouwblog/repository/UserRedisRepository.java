@@ -2,14 +2,13 @@ package io.carloship.jouwblog.repository;
 
 import io.carloship.jouwblog.Application;
 import io.carloship.jouwblog.response.User;
-import io.carloship.jouwblog.runtime.BlogThreads;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -20,7 +19,7 @@ public class UserRedisRepository {
     private static final String PREFIX_SEARCH_ID = "user_search:";
 
     @Inject
-    RedisAsyncCommands<String, String> asyncCommands;
+    protected RedisAsyncCommands<String, String> asyncCommands;
 
     @Async
     public CompletableFuture<User> findUser(String id) {
@@ -63,7 +62,7 @@ public class UserRedisRepository {
     }
 
     @Async
-    public CompletableFuture<Boolean> saveUser(User user) {
+    public CompletableFuture<Boolean> saveUser(@NotNull User user) {
         var map = user.toMap();
         String key = PREFIX + user.getId();
         String name_key = PREFIX_SEARCH_ID + user.getUsername();

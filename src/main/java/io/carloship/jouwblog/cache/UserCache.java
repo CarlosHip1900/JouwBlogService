@@ -6,9 +6,11 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.carloship.jouwblog.repository.UserRedisRepository;
 import io.carloship.jouwblog.response.impl.CachedUser;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 
+@Slf4j
 @Singleton
 public class UserCache {
 
@@ -24,7 +26,17 @@ public class UserCache {
                     if (!(value instanceof CachedUser user)) return;
 
                     if (cause == RemovalCause.EXPLICIT) return;
-                    repository.saveUser(user.getUser());
+                    repository.saveUser(user.getUser()).thenAccept(result -> {
+                        if (result){
+                            log.info("User {} saved in redis", user.getUser().getName());
+                            return;
+                        }
+
+                        log.error("User {} isn't saved in redis", user.getUser().getName());
+                    }).exceptionally(ex -> {
+                        log.error("Error while saving user {} in redis: {}", user.getUser().getName(), ex.getMessage());
+                        return null;
+                    });
                 })
                 .build();
     }
