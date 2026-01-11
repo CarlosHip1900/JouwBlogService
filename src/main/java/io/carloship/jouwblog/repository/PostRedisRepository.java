@@ -6,8 +6,8 @@ import io.lettuce.core.api.async.RedisAsyncCommands;
 import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 import java.util.List;
@@ -27,8 +27,8 @@ public class PostRedisRepository {
     protected RedisAsyncCommands<String, String> asyncCommands;
 
     @Async
-    public CompletableFuture<Post> findPost(String userId, String postId) {
-        if (userId == null || userId.isBlank()) {
+    public CompletableFuture<Post> findPost(@NonNull String userId,@NonNull String postId) {
+        if (userId.isBlank()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -53,8 +53,10 @@ public class PostRedisRepository {
     }
 
     @Async
-    public CompletableFuture<List<Post>> findAllUserPosts(String userId) {
-        if (userId == null || userId.isBlank()) {
+    @NonNull
+    public CompletableFuture<List<Post>> findAllUserPosts(@NonNull String userId) {
+        if (userId.isBlank()) {
+            log.warn("Invalid user arguments for find posts operation, userIs is blank!");
             return CompletableFuture.completedFuture(List.of());
         }
 
@@ -64,7 +66,7 @@ public class PostRedisRepository {
                 .thenCompose(postIds -> {
                     if (postIds == null || postIds.isEmpty()) {
                         log.debug("No posts found for user: {}", userId);
-                        return CompletableFuture.completedFuture(null);
+                        return CompletableFuture.completedFuture(List.of());
                     }
 
                     List<CompletableFuture<Post>> postFutures = postIds.stream()
@@ -72,20 +74,23 @@ public class PostRedisRepository {
                             .toList();
 
                     return CompletableFuture.allOf(postFutures.toArray(new CompletableFuture[0]))
-                            .thenApply(v -> postFutures.stream()
+                            .thenApply(_ -> postFutures.stream()
                                     .map(CompletableFuture::join)
                                     .filter(Objects::nonNull)
-                                    .collect(Collectors.toList()));
+                                    .collect(Collectors.toList()))
+                            .exceptionally(ex -> {
+                                log.error("Error while computing completable futures: {}", ex.getMessage());
+                                return List.of();
+                            });
                 }).exceptionally(ex -> {
-                    log.error("Error finding all posts for user: {}, error={}",
-                            userId, ex.getMessage(), ex);
+                    log.error("Error finding all posts for user: {}, error={}", userId, ex.getMessage(), ex);
                     return List.of();
                 }).toCompletableFuture();
     }
 
     @Async
-    public CompletableFuture<Boolean> savePost(@NotNull Post post) {
-        if (post == null || post.getUserId() == null || post.getUserId().isBlank()) {
+    public CompletableFuture<Boolean> savePost(@NonNull Post post) {
+        if (post.getUserId() == null || post.getUserId().isBlank()) {
             log.warn("Invalid post data for save operation");
             return CompletableFuture.completedFuture(false);
         }
@@ -110,8 +115,8 @@ public class PostRedisRepository {
     }
 
     @Async
-    public CompletableFuture<Boolean> deletePost(String userId, String postId) {
-        if (userId == null || userId.isBlank()) {
+    public CompletableFuture<Boolean> deletePost(@NonNull String userId, @NonNull String postId) {
+        if (userId.isBlank()) {
             return CompletableFuture.completedFuture(false);
         }
 
@@ -119,7 +124,7 @@ public class PostRedisRepository {
         String userPostsKey = buildUserPostsSetKey(userId);
 
         return asyncCommands.del(key)
-                .thenCompose(_ -> asyncCommands.srem(userPostsKey, String.valueOf(postId)))
+                .thenCompose(_ -> asyncCommands.srem(userPostsKey, postId))
                 .thenApply(_ -> {
                     log.debug("Post deleted: userId={}, postId={}", userId, postId);
                     return true;
