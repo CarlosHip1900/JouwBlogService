@@ -1,6 +1,5 @@
 package io.carloship.jouwblog.response;
 
-import io.carloship.jouwblog.response.impl.HashResponse;
 import io.micronaut.data.annotation.GeneratedValue;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.serde.annotation.Serdeable;

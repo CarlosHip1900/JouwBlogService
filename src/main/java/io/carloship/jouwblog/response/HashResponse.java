@@ -1,4 +1,4 @@
-package io.carloship.jouwblog.response.impl;
+package io.carloship.jouwblog.response;
 
 import java.util.Map;
 
