@@ -15,12 +15,10 @@ import java.util.function.Supplier;
 @Singleton
 public class UserCache {
 
-    private final UserRedisRepository repository;
     private final Cache<String, User> users;
     private final Cache<String, User> byUsername;
 
     public UserCache(UserRedisRepository repository){
-        this.repository = repository;
         this.byUsername = Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(15)).build();
         this.users = Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(15))
@@ -45,11 +43,6 @@ public class UserCache {
                 .build();
     }
 
-    public void addCachedUser(Supplier<User> supplier){
-        var obj = supplier.get();
-        addCachedUser(obj);
-    }
-
     public void addCachedUser(User user){
         users.put(user.getName(), user);
     }
@@ -60,5 +53,13 @@ public class UserCache {
 
     public User getUserByUsername(String userName){
         return byUsername.getIfPresent(userName);
+    }
+
+    public void invalid(String id){
+        var u = getUserById(id);
+        if (u ==  null) return;
+
+        byUsername.invalidate(u.getUsername());
+        users.invalidate(id);
     }
 }

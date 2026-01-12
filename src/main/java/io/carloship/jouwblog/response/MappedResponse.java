@@ -2,7 +2,7 @@ package io.carloship.jouwblog.response;
 
 import java.util.Map;
 
-public interface HashResponse {
+public interface MappedResponse {
 
     Object fromMap(Map<String, String> map);
 

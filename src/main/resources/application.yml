@@ -9,4 +9,7 @@ micronaut:
       swagger-ui:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
-redis.uri: redis://localhost
+redis:
+  uri: redis://localhost
+mongodb:
+  uri: mongodb://localhost:27017/jouwBlog

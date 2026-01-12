@@ -16,7 +16,7 @@ import java.util.Map;
 @MappedEntity
 @NoArgsConstructor
 @AllArgsConstructor
-public class Comment implements HashResponse {
+public class Comment implements MappedResponse {
 
     @BsonId
     @GeneratedValue
