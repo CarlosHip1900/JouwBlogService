@@ -3,7 +3,6 @@ package io.carloship.jouwblog.service;
 import io.carloship.jouwblog.cache.UserCache;
 import io.carloship.jouwblog.repository.UserRedisRepository;
 import io.carloship.jouwblog.repository.UserRepository;
-import io.carloship.jouwblog.response.Comment;
 import io.carloship.jouwblog.response.User;
 import io.micronaut.scheduling.annotation.Async;
 import jakarta.inject.Inject;
@@ -11,7 +10,6 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -36,13 +34,13 @@ public class UserService {
 
         return redisRepository.findUser(userId).thenCompose(redisUser -> {
             if (redisUser != null){
-                cache.addCachedUser(redisUser);
+                cache.addUser(redisUser);
                 return CompletableFuture.completedFuture(redisUser);
             }
 
             return repository.findById(userId).thenApply(mongo -> {
                 if (mongo != null){
-                    cache.addCachedUser(mongo);
+                    cache.addUser(mongo);
                     redisRepository.saveUser(mongo);
                     return mongo;
                 }
@@ -73,7 +71,7 @@ public class UserService {
                         return null;
                     }
 
-                    cache.addCachedUser(user);
+                    cache.addUser(user);
                     return savedUser;
                 });
             });
@@ -87,7 +85,7 @@ public class UserService {
                     return null;
                 }
 
-                cache.addCachedUser(updatedUser);
+                cache.addUser(updatedUser);
                 return updatedUser;
             }).exceptionally(ex -> {
                 log.error("Error while update user in redis {}: {}", user.getId(), ex.getMessage());
@@ -102,6 +100,16 @@ public class UserService {
 
     @Async
     public CompletableFuture<Void> deleteUser(@NonNull String id){
-        return repository.deleteById(id).thenCompose(_ -> redisRepository.deleteUser(id).thenAccept(_2 -> cache.invalid(id)));
+        return repository.deleteById(id).thenCompose(_ ->
+                redisRepository.deleteUser(id).thenAccept(_2 ->
+                        cache.invalidate(id))
+                        .exceptionally(ex -> {
+                            log.error("Error while delete user {} from redis: {}", id, ex.getMessage());
+                            return null;
+                        })
+        ).exceptionally(ex -> {
+            log.error("Error while delete user {} from mongo: {}", id, ex.getMessage());
+            return null;
+        });
     }
 }
