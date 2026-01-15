@@ -59,31 +59,24 @@ public class PostService {
 
     @Async
     public CompletableFuture<List<Post>> findAllPage(@NonNull String userId, int size, int page) {
-        // 1. Check Local Cache
         List<Post> cached = postCache.getUserPosts(userId);
         int fromIndex = page * size;
 
-        // Check if memory cache contains the requested range
         if (cached != null && cached.size() > fromIndex) {
             return CompletableFuture.completedFuture(Utils.getPage(cached, page, size));
         }
 
-        // 2. Check Redis (using thenCompose for the next tier)
         return redisRepository.findAllUserPosts(userId).thenCompose(redisPosts -> {
-            // If Redis has the data (or at least enough for this page)
             if (redisPosts != null && redisPosts.size() > fromIndex) {
-                // Update local cache for next time
+
                 redisPosts.forEach(postCache::addPost);
                 return CompletableFuture.completedFuture(Utils.getPage(redisPosts, page, size));
             }
 
-            // 3. Fallback to Database
             return repository.findPostsByUserId(userId, Pageable.from(page, size))
                     .thenApply(result -> {
-                        // Extract content from Spring Data Page object
                         List<Post> content = result.getContent();
 
-                        // Asynchronously save to both caches for future requests
                         content.forEach(post -> {
                             postCache.addPost(post);
                             redisRepository.savePost(post);
